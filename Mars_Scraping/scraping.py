@@ -12,6 +12,8 @@ def scrape_all():
     browser = Browser('chrome', **executable_path, headless=True)
 
     news_title, news_paragraph = mars_news(browser)
+    
+    hemisphere_image_urls = mars_hemisphere(browser)
 
     # Run all scraping functions and store results in a dictionary
     data = {
@@ -19,6 +21,7 @@ def scrape_all():
         "news_paragraph": news_paragraph,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
+        "hemispheres": hemisphere_image_urls,
         "last_modified": dt.datetime.now()
     }
 
@@ -97,7 +100,60 @@ def mars_facts():
     # Convert dataframe into HTML format, add bootstrap
     return df.to_html(classes="table table-striped")
 
-if __name__ == "__main__":
+    # If running as script, print scraped data
+    # print(scrape_all())
 
+def  mars_hemisphere(browser):
+    # 1. Use browser to visit the URL 
+    url = 'https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars'
+    browser.visit(url)
+
+    # Parse the resulting html with soup
+    html = browser.html
+    img_soup = soup(html, 'html.parser')
+
+    # Optional delay for loading the page
+    browser.is_element_present_by_css('div.list_text', wait_time=1)
+
+    #Create a list to hold the images and titles.
+    hemisphere_image_urls = []
+
+    # #Retrieve each item that contains a img
+    results = img_soup.find("div", class_ = 'collapsible results')
+    mars_img = results.find_all('div', class_='item')
+
+    #Get the image link
+    links = browser.find_by_css('a.product-item img')
+
+    for i in range(len(links)):
+        #Create empty dictionary
+        hemispheres = {}
+        
+        #Get the image link
+        browser.find_by_css('a.product-item img')[i].click()
+
+        #Scrape the title
+        mars_title = browser.find_by_css("h2.title").text
+
+        # find the relative image url
+        sample = browser.links.find_by_text('Sample').first
+        img_url_rel = sample['href']
+
+        # # Use the base url to create an absolute url
+        # image_urls = f'https://marshemispheres.com/{img_url_rel}'
+        
+        #Add to dictionary
+        hemispheres["img_url"] = img_url_rel
+        hemispheres["title"] = mars_title
+        
+        #Add to list
+        hemisphere_image_urls.append(hemispheres)
+
+        #Go back a page to start scrape again
+        browser.back()
+
+    return hemisphere_image_urls
+
+if __name__ == "__main__":
     # If running as script, print scraped data
     print(scrape_all())
